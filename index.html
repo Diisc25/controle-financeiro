@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Controle Financeiro</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: Arial, sans-serif; background:#f2f2f2; margin:0; padding:15px; }
+    h1 { text-align:center; }
+    input, select, button {
+      width:100%; padding:10px; margin:5px 0; font-size:16px;
+    }
+    button { background:#1e88e5; color:#fff; border:none; border-radius:5px; }
+    .card { background:#fff; padding:15px; border-radius:8px; margin-bottom:15px; }
+    .item { border-bottom:1px solid #ddd; padding:5px 0; }
+  </style>
+</head>
+<body>
+
+<h1>📊 Controle Financeiro</h1>
+
+<div class="card">
+  <select id="tipo">
+    <option value="ganho">Ganho</option>
+    <option value="despesa">Despesa</option>
+  </select>
+
+  <select id="categoria">
+    <option>Salário</option>
+    <option>Comissão Recebida</option>
+    <option>Comissão a Receber</option>
+    <option>Alimentação</option>
+    <option>Combustível</option>
+    <option>Compras Extras</option>
+    <option>Moradia</option>
+    <option>Faculdade</option>
+    <option>Moto</option>
+    <option>Cartões</option>
+    <option>Empréstimos</option>
+    <option>Outros</option>
+  </select>
+
+  <input id="descricao" placeholder="Descrição">
+  <input id="valor" type="number" placeholder="Valor">
+  <button onclick="adicionar()">Adicionar</button>
+</div>
+
+<div class="card">
+  <p>💰 Ganhos: R$ <span id="ganhos">0</span></p>
+  <p>📉 Despesas: R$ <span id="despesas">0</span></p>
+  <p><b>Saldo: R$ <span id="saldo">0</span></b></p>
+</div>
+
+<div class="card">
+  <h3>Histórico</h3>
+  <div id="lista"></div>
+</div>
+
+<script>
+let dados = JSON.parse(localStorage.getItem("financeiro")) || [];
+
+function salvar() {
+  localStorage.setItem("financeiro", JSON.stringify(dados));
+}
+
+function adicionar() {
+  const tipo = tipoEl.value;
+  const categoria = categoriaEl.value;
+  const descricao = descricaoEl.value;
+  const valor = Number(valorEl.value);
+
+  if (!descricao || !valor) return;
+
+  dados.push({ tipo, categoria, descricao, valor });
+  salvar();
+  renderizar();
+
+  descricaoEl.value = "";
+  valorEl.value = "";
+}
+
+const tipoEl = document.getElementById("tipo");
+const categoriaEl = document.getElementById("categoria");
+const descricaoEl = document.getElementById("descricao");
+const valorEl = document.getElementById("valor");
+const listaEl = document.getElementById("lista");
+
+function renderizar() {
+  let ganhos = 0, despesas = 0;
+  listaEl.innerHTML = "";
+
+  dados.forEach(d => {
+    if (d.tipo === "ganho") ganhos += d.valor;
+    else despesas += d.valor;
+
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerText = `${d.tipo.toUpperCase()} | ${d.categoria} | ${d.descricao} - R$ ${d.valor}`;
+    listaEl.appendChild(div);
+  });
+
+  document.getElementById("ganhos").innerText = ganhos.toFixed(2);
+  document.getElementById("despesas").innerText = despesas.toFixed(2);
+  document.getElementById("saldo").innerText = (ganhos - despesas).toFixed(2);
+}
+
+renderizar();
+</script>
+
+</body>
+                            </html>
