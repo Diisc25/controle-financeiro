@@ -1,59 +1,74 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>Controle Financeiro</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body { font-family: Arial, sans-serif; background:#f2f2f2; margin:0; padding:15px; }
-    h1 { text-align:center; }
-    input, select, button {
-      width:100%; padding:10px; margin:5px 0; font-size:16px;
-    }
-    button { background:#1e88e5; color:#fff; border:none; border-radius:5px; }
-    .card { background:#fff; padding:15px; border-radius:8px; margin-bottom:15px; }
-    .item { border-bottom:1px solid #ddd; padding:5px 0; }
-  </style>
+<meta charset="UTF-8">
+<title>Controle Financeiro</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+
+<style>
+body { font-family: Arial, sans-serif; background:#f2f2f2; margin:0; padding:15px; }
+h1 { text-align:center; }
+h3 { margin-top:0; }
+input, select, button {
+  width:100%; padding:10px; margin:5px 0; font-size:16px;
+}
+button { background:#1e88e5; color:#fff; border:none; border-radius:6px; }
+.card { background:#fff; padding:15px; border-radius:10px; margin-bottom:15px; }
+.item { border-bottom:1px solid #ddd; padding:5px 0; }
+small { color:#666; }
+</style>
 </head>
+
 <body>
 
 <h1>📊 Controle Financeiro</h1>
+<p style="text-align:center">Web App pessoal</p>
 
 <div class="card">
-  <select id="tipo">
-    <option value="ganho">Ganho</option>
-    <option value="despesa">Despesa</option>
-  </select>
+<h3>➕ Novo Lançamento</h3>
 
-  <select id="categoria">
-    <option>Salário</option>
-    <option>Comissão Recebida</option>
-    <option>Comissão a Receber</option>
-    <option>Alimentação</option>
-    <option>Combustível</option>
-    <option>Compras Extras</option>
-    <option>Moradia</option>
-    <option>Faculdade</option>
-    <option>Moto</option>
-    <option>Cartões</option>
-    <option>Empréstimos</option>
-    <option>Outros</option>
-  </select>
+<select id="tipo">
+<option value="ganho">Ganho</option>
+<option value="despesa">Despesa</option>
+</select>
 
-  <input id="descricao" placeholder="Descrição">
-  <input id="valor" type="number" placeholder="Valor">
-  <button onclick="adicionar()">Adicionar</button>
+<select id="categoria">
+<option>Salário</option>
+<option>Comissão Recebida</option>
+<option>Comissão a Receber</option>
+<option>Alimentação</option>
+<option>Combustível</option>
+<option>Compras Extras</option>
+<option>Moto</option>
+<option>Faculdade</option>
+<option>Cartões</option>
+<option>Empréstimos</option>
+<option>Outros</option>
+</select>
+
+<input id="descricao" placeholder="Descrição">
+<input id="valor" type="number" placeholder="Valor (R$)">
+<button onclick="adicionar()">Adicionar</button>
 </div>
 
 <div class="card">
-  <p>💰 Ganhos: R$ <span id="ganhos">0</span></p>
-  <p>📉 Despesas: R$ <span id="despesas">0</span></p>
-  <p><b>Saldo: R$ <span id="saldo">0</span></b></p>
+<h3>📊 Resumo</h3>
+<p>💰 Ganhos: R$ <span id="ganhos">0</span></p>
+<p>📉 Despesas: R$ <span id="despesas">0</span></p>
+<p><b>Saldo: R$ <span id="saldo">0</span></b></p>
 </div>
 
 <div class="card">
-  <h3>Histórico</h3>
-  <div id="lista"></div>
+<h3>📄 Importar Fatura (PDF)</h3>
+<input type="file" accept="application/pdf" onchange="lerPDF(this)">
+<small>Leitura automática de valores da fatura.</small>
+</div>
+
+<div class="card">
+<h3>📜 Histórico</h3>
+<div id="lista"></div>
 </div>
 
 <script>
@@ -64,10 +79,10 @@ function salvar() {
 }
 
 function adicionar() {
-  const tipo = tipoEl.value;
-  const categoria = categoriaEl.value;
-  const descricao = descricaoEl.value;
-  const valor = Number(valorEl.value);
+  const tipo = document.getElementById("tipo").value;
+  const categoria = document.getElementById("categoria").value;
+  const descricao = document.getElementById("descricao").value;
+  const valor = Number(document.getElementById("valor").value);
 
   if (!descricao || !valor) return;
 
@@ -75,19 +90,47 @@ function adicionar() {
   salvar();
   renderizar();
 
-  descricaoEl.value = "";
-  valorEl.value = "";
+  document.getElementById("descricao").value = "";
+  document.getElementById("valor").value = "";
 }
 
-const tipoEl = document.getElementById("tipo");
-const categoriaEl = document.getElementById("categoria");
-const descricaoEl = document.getElementById("descricao");
-const valorEl = document.getElementById("valor");
-const listaEl = document.getElementById("lista");
+async function lerPDF(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async function () {
+    const typedarray = new Uint8Array(this.result);
+    const pdf = await pdfjsLib.getDocument(typedarray).promise;
+
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const text = await page.getTextContent();
+
+      text.items.forEach(item => {
+        const match = item.str.match(/\\d+,\\d{2}/);
+        if (match) {
+          dados.push({
+            tipo: "despesa",
+            categoria: "Cartões",
+            descricao: "Fatura PDF",
+            valor: Number(match[0].replace(",", "."))
+          });
+        }
+      });
+    }
+
+    salvar();
+    renderizar();
+    alert("PDF processado! Confira o histórico.");
+  };
+  reader.readAsArrayBuffer(file);
+}
 
 function renderizar() {
   let ganhos = 0, despesas = 0;
-  listaEl.innerHTML = "";
+  const lista = document.getElementById("lista");
+  lista.innerHTML = "";
 
   dados.forEach(d => {
     if (d.tipo === "ganho") ganhos += d.valor;
@@ -95,8 +138,8 @@ function renderizar() {
 
     const div = document.createElement("div");
     div.className = "item";
-    div.innerText = `${d.tipo.toUpperCase()} | ${d.categoria} | ${d.descricao} - R$ ${d.valor}`;
-    listaEl.appendChild(div);
+    div.innerText = `${d.categoria} | ${d.descricao} - R$ ${d.valor.toFixed(2)}`;
+    lista.appendChild(div);
   });
 
   document.getElementById("ganhos").innerText = ganhos.toFixed(2);
@@ -108,4 +151,4 @@ renderizar();
 </script>
 
 </body>
-                            </html>
+</html>
