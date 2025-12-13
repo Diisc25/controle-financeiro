@@ -1,237 +1,129 @@
-  <!DOCTYPE html>
-<html lang="pt-BR">
+<!DOCTYPE html><html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<title>Meu Controle Financeiro</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<style>
-:root{
-  --primaria:#1e88e5;
-  --verde:#2e7d32;
-  --vermelho:#c62828;
-  --amarelo:#f9a825;
-  --fundo:#f4f6f8;
-}
-
-body{
-  margin:0;
-  padding:15px;
-  font-family:Segoe UI, Arial, sans-serif;
-  background:linear-gradient(180deg,#e3f2fd,#f4f6f8);
-}
-
-h1{text-align:center;margin-bottom:5px;}
-.sub{text-align:center;color:#555;margin-bottom:15px;}
-
-.card{
-  background:#fff;
-  border-radius:14px;
-  padding:15px;
-  margin-bottom:15px;
-  box-shadow:0 8px 20px rgba(0,0,0,.08);
-}
-
-h3{margin-top:0;}
-
-input,select,button{
-  width:100%;
-  padding:12px;
-  margin:6px 0;
-  border-radius:10px;
-  border:1px solid #ddd;
-  font-size:16px;
-}
-
-button{
-  background:var(--primaria);
-  color:#fff;
-  border:none;
-  font-weight:600;
-}
-
-.resumo{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:10px;
-}
-
-.box{
-  padding:12px;
-  border-radius:12px;
-  text-align:center;
-  font-weight:600;
-}
-
-.ganho{background:#e8f5e9;color:var(--verde);}
-.despesa{background:#ffebee;color:var(--vermelho);}
-.saldo{
-  grid-column:1/3;
-  background:#e3f2fd;
-  color:#0d47a1;
-  font-size:18px;
-}
-
-.alerta{
-  padding:10px;
-  border-radius:10px;
-  margin-bottom:10px;
-  font-weight:600;
-}
-
-.vencido{background:#ffcdd2;color:#b71c1c;}
-.hoje{background:#fff9c4;color:#f57f17;}
-.proximo{background:#e3f2fd;color:#0d47a1;}
-
-.item{
-  padding:8px;
-  border-bottom:1px solid #eee;
-}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Controle Financeiro</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin:0; background:#f4f6f8; }
+    header { background:#1e88e5; color:white; padding:15px; text-align:center; font-size:18px; }
+    nav { display:flex; justify-content:space-around; background:#ffffff; border-top:1px solid #ccc; position:fixed; bottom:0; width:100%; }
+    nav button { flex:1; padding:10px; border:none; background:none; font-size:14px; }
+    nav button.active { color:#1e88e5; font-weight:bold; }
+    .page { display:none; padding:15px; padding-bottom:70px; }
+    .page.active { display:block; }
+    .card { background:white; padding:15px; margin-bottom:10px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.1); }
+    input, select, button { width:100%; padding:8px; margin-top:5px; margin-bottom:10px; }
+    button.primary { background:#1e88e5; color:white; border:none; border-radius:5px; }
+  </style>
 </head>
+<body><header>📊 Controle Financeiro</header><div id="inicio" class="page active">
+  <div class="card"><h3>Saldo Atual</h3><p id="saldo">R$ 0,00</p></div>
+  <div class="card"><h3>Total Recebido</h3><p id="recebido">R$ 0,00</p></div>
+  <div class="card"><h3>Total Gasto</h3><p id="gasto">R$ 0,00</p></div>
+</div><div id="lancamentos" class="page">
+  <div class="card">
+    <h3>Novo Lançamento</h3>
+    <select id="tipo">
+      <option value="receita">Receita</option>
+      <option value="despesa">Despesa</option>
+    </select>
+    <input type="number" id="valor" placeholder="Valor" />
+    <select id="categoria">
+      <option>Alimentação</option>
+      <option>Combustível</option>
+      <option>Cartões</option>
+      <option>Empréstimos</option>
+      <option>Outros</option>
+    </select>
+    <button class="primary" onclick="adicionar()">Salvar</button>
+  </div>
+</div><div id="relatorios" class="page">
+  <div class="card">
+    <canvas id="grafico"></canvas>
+  </div>
+</div><div id="config" class="page">
+  <div class="card">
+    <h3>Backup</h3>
+    <button onclick="exportar()">Exportar Dados</button>
+    <input type="file" onchange="importar(event)" />
+  </div>
+</div><nav>
+  <button onclick="trocar('inicio')" class="active">🏠 Início</button>
+  <button onclick="trocar('lancamentos')">➕ Lançar</button>
+  <button onclick="trocar('relatorios')">📊 Relatórios</button>
+  <button onclick="trocar('config')">⚙️ Config</button>
+</nav><script>
+let dados = JSON.parse(localStorage.getItem('dados')) || [];
 
-<body>
-
-<h1>💰 Meu Controle</h1>
-<p class="sub">Financeiro pessoal</p>
-
-<div class="card">
-<h3>➕ Novo Lançamento</h3>
-
-<select id="tipo">
-<option value="ganho">Ganho</option>
-<option value="despesa">Despesa</option>
-</select>
-
-<select id="categoria">
-<option>Salário</option>
-<option>Alimentação</option>
-<option>Combustível</option>
-<option>Compras Extras</option>
-<option>Cartões</option>
-<option>Moto</option>
-<option>Faculdade</option>
-<option>Empréstimos</option>
-<option>Outros</option>
-</select>
-
-<input id="descricao" placeholder="Descrição">
-<input id="valor" type="number" placeholder="Valor (R$)">
-<input id="data" type="date">
-<button onclick="adicionar()">Adicionar</button>
-</div>
-
-<div class="card resumo">
-<div class="box ganho">Ganhos<br>R$ <span id="ganhos">0</span></div>
-<div class="box despesa">Despesas<br>R$ <span id="despesas">0</span></div>
-<div class="box saldo">Saldo<br>R$ <span id="saldo">0</span></div>
-</div>
-
-<div class="card">
-<h3>🔔 Alertas</h3>
-<div id="alertas"></div>
-</div>
-
-<div class="card">
-<h3>📆 Visão Mensal</h3>
-<input type="month" id="mesFiltro" onchange="renderizar()">
-</div>
-
-<div class="card">
-<h3>📊 Gastos por Categoria</h3>
-<canvas id="grafico"></canvas>
-</div>
-
-<div class="card">
-<h3>☁️ Backup</h3>
-<button onclick="backup()">Baixar backup</button>
-</div>
-
-<div class="card">
-<h3>📜 Histórico</h3>
-<div id="lista"></div>
-</div>
-
-<script>
-let dados = JSON.parse(localStorage.getItem("financeiro")) || [];
-
-function salvar(){
-  localStorage.setItem("financeiro",JSON.stringify(dados));
+function trocar(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
+  atualizar();
 }
 
 function adicionar(){
-  const obj={
-    tipo:tipo.value,
-    categoria:categoria.value,
-    descricao:descricao.value,
-    valor:Number(valor.value),
-    data:data.value
-  };
-  if(!obj.descricao||!obj.valor) return;
-  dados.push(obj);
-  salvar();
-  renderizar();
-  descricao.value="";valor.value="";
+  const tipo = tipoEl.value;
+  const valor = Number(valorEl.value);
+  const categoria = categoriaEl.value;
+  if(!valor) return;
+  dados.push({tipo, valor, categoria});
+  localStorage.setItem('dados', JSON.stringify(dados));
+  valorEl.value='';
+  atualizar();
 }
 
-function backup(){
-  const blob=new Blob([JSON.stringify(dados)],{type:"application/json"});
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download="backup_financeiro.json";
-  a.click();
+const tipoEl = document.getElementById('tipo');
+const valorEl = document.getElementById('valor');
+const categoriaEl = document.getElementById('categoria');
+
+function atualizar(){
+  let recebido = 0, gasto = 0;
+  dados.forEach(d=>{
+    if(d.tipo==='receita') recebido+=d.valor;
+    else gasto+=d.valor;
+  });
+  document.getElementById('recebido').innerText = 'R$ ' + recebido.toFixed(2);
+  document.getElementById('gasto').innerText = 'R$ ' + gasto.toFixed(2);
+  document.getElementById('saldo').innerText = 'R$ ' + (recebido-gasto).toFixed(2);
+  grafico();
 }
 
 let chart;
-
-function renderizar(){
-  let g=0,d=0;
-  lista.innerHTML="";
-  alertas.innerHTML="";
-
-  const hoje=new Date();
-  const filtro=mesFiltro.value;
-
-  const categorias={};
-
-  dados.forEach(x=>{
-    if(filtro && !x.data.startsWith(filtro)) return;
-
-    x.tipo==="ganho"?g+=x.valor:d+=x.valor;
-
-    if(x.tipo==="despesa"){
-      categorias[x.categoria]=(categorias[x.categoria]||0)+x.valor;
-
-      if(x.data){
-        const venc=new Date(x.data);
-        const diff=(venc-hoje)/86400000;
-        if(diff<0) alertas.innerHTML+=`<div class="alerta vencido">❌ ${x.descricao} vencido</div>`;
-        else if(diff<=1) alertas.innerHTML+=`<div class="alerta hoje">⚠️ ${x.descricao} vence hoje</div>`;
-        else if(diff<=3) alertas.innerHTML+=`<div class="alerta proximo">⏳ ${x.descricao} vence em breve</div>`;
-      }
-    }
-
-    lista.innerHTML+=`<div class="item">${x.categoria} | ${x.descricao} — R$ ${x.valor.toFixed(2)}</div>`;
+function grafico(){
+  const ctx = document.getElementById('grafico');
+  const categorias = {};
+  dados.filter(d=>d.tipo==='despesa').forEach(d=>{
+    categorias[d.categoria]=(categorias[d.categoria]||0)+d.valor;
   });
-
-  ganhos.textContent=g.toFixed(2);
-  despesas.textContent=d.toFixed(2);
-  saldo.textContent=(g-d).toFixed(2);
-
   if(chart) chart.destroy();
-  chart=new Chart(grafico,{
-    type:"pie",
-    data:{
-      labels:Object.keys(categorias),
-      datasets:[{data:Object.values(categorias)}]
-    }
+  chart = new Chart(ctx, {
+    type:'pie',
+    data:{ labels:Object.keys(categorias), datasets:[{ data:Object.values(categorias) }] }
   });
 }
 
-renderizar();
-</script>
+function exportar(){
+  const blob = new Blob([JSON.stringify(dados)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'backup-financeiro.json';
+  a.click();
+}
 
-</body>
+function importar(e){
+  const file = e.target.files[0];
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    dados = JSON.parse(reader.result);
+    localStorage.setItem('dados', JSON.stringify(dados));
+    atualizar();
+  };
+  reader.readAsText(file);
+}
+
+atualizar();
+</script></body>
 </html>
