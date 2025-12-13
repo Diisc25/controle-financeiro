@@ -1,129 +1,80 @@
-<!DOCTYPE html><html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Controle Financeiro</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    body { font-family: Arial, sans-serif; margin:0; background:#f4f6f8; }
-    header { background:#1e88e5; color:white; padding:15px; text-align:center; font-size:18px; }
-    nav { display:flex; justify-content:space-around; background:#ffffff; border-top:1px solid #ccc; position:fixed; bottom:0; width:100%; }
-    nav button { flex:1; padding:10px; border:none; background:none; font-size:14px; }
-    nav button.active { color:#1e88e5; font-weight:bold; }
-    .page { display:none; padding:15px; padding-bottom:70px; }
-    .page.active { display:block; }
-    .card { background:white; padding:15px; margin-bottom:10px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.1); }
-    input, select, button { width:100%; padding:8px; margin-top:5px; margin-bottom:10px; }
-    button.primary { background:#1e88e5; color:white; border:none; border-radius:5px; }
-  </style>
-</head>
-<body><header>📊 Controle Financeiro</header><div id="inicio" class="page active">
-  <div class="card"><h3>Saldo Atual</h3><p id="saldo">R$ 0,00</p></div>
-  <div class="card"><h3>Total Recebido</h3><p id="recebido">R$ 0,00</p></div>
-  <div class="card"><h3>Total Gasto</h3><p id="gasto">R$ 0,00</p></div>
-</div><div id="lancamentos" class="page">
-  <div class="card">
-    <h3>Novo Lançamento</h3>
-    <select id="tipo">
-      <option value="receita">Receita</option>
-      <option value="despesa">Despesa</option>
-    </select>
-    <input type="number" id="valor" placeholder="Valor" />
-    <select id="categoria">
-      <option>Alimentação</option>
-      <option>Combustível</option>
-      <option>Cartões</option>
-      <option>Empréstimos</option>
-      <option>Outros</option>
-    </select>
-    <button class="primary" onclick="adicionar()">Salvar</button>
-  </div>
-</div><div id="relatorios" class="page">
-  <div class="card">
-    <canvas id="grafico"></canvas>
-  </div>
-</div><div id="config" class="page">
-  <div class="card">
-    <h3>Backup</h3>
-    <button onclick="exportar()">Exportar Dados</button>
-    <input type="file" onchange="importar(event)" />
-  </div>
-</div><nav>
-  <button onclick="trocar('inicio')" class="active">🏠 Início</button>
-  <button onclick="trocar('lancamentos')">➕ Lançar</button>
-  <button onclick="trocar('relatorios')">📊 Relatórios</button>
-  <button onclick="trocar('config')">⚙️ Config</button>
-</nav><script>
-let dados = JSON.parse(localStorage.getItem('dados')) || [];
+import { useState, useEffect } from "react"; import { Card, CardContent } from "@/components/ui/card"; import { Button } from "@/components/ui/button"; import { Input } from "@/components/ui/input"; import { motion } from "framer-motion"; import * as pdfjsLib from "pdfjs-dist";
 
-function trocar(id){
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  event.target.classList.add('active');
-  atualizar();
-}
+pdfjsLib.GlobalWorkerOptions.workerSrc = //cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js;
 
-function adicionar(){
-  const tipo = tipoEl.value;
-  const valor = Number(valorEl.value);
-  const categoria = categoriaEl.value;
-  if(!valor) return;
-  dados.push({tipo, valor, categoria});
-  localStorage.setItem('dados', JSON.stringify(dados));
-  valorEl.value='';
-  atualizar();
-}
+const CATEGORIAS = [ "Alimentação", "Combustível", "Moradia", "Compras Extras", "Faculdade", "Moto", "Cartão Nubank", "Cartão PAN", "Cartão Inter", "Empréstimo Nubank", "Empréstimo 99", "Outros" ];
 
-const tipoEl = document.getElementById('tipo');
-const valorEl = document.getElementById('valor');
-const categoriaEl = document.getElementById('categoria');
+export default function FinanceApp() { const [registros, setRegistros] = useState(() => { const saved = localStorage.getItem("financeApp"); return saved ? JSON.parse(saved) : []; });
 
-function atualizar(){
-  let recebido = 0, gasto = 0;
-  dados.forEach(d=>{
-    if(d.tipo==='receita') recebido+=d.valor;
-    else gasto+=d.valor;
-  });
-  document.getElementById('recebido').innerText = 'R$ ' + recebido.toFixed(2);
-  document.getElementById('gasto').innerText = 'R$ ' + gasto.toFixed(2);
-  document.getElementById('saldo').innerText = 'R$ ' + (recebido-gasto).toFixed(2);
-  grafico();
-}
+const [form, setForm] = useState({ tipo: "Despesa", categoria: "Alimentação", descricao: "", valor: "", mes: new Date().toLocaleString("pt-BR", { month: "long" }) });
 
-let chart;
-function grafico(){
-  const ctx = document.getElementById('grafico');
-  const categorias = {};
-  dados.filter(d=>d.tipo==='despesa').forEach(d=>{
-    categorias[d.categoria]=(categorias[d.categoria]||0)+d.valor;
-  });
-  if(chart) chart.destroy();
-  chart = new Chart(ctx, {
-    type:'pie',
-    data:{ labels:Object.keys(categorias), datasets:[{ data:Object.values(categorias) }] }
-  });
-}
+const [pdfText, setPdfText] = useState("");
 
-function exportar(){
-  const blob = new Blob([JSON.stringify(dados)], {type:'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'backup-financeiro.json';
-  a.click();
-}
+useEffect(() => { localStorage.setItem("financeApp", JSON.stringify(registros)); }, [registros]);
 
-function importar(e){
-  const file = e.target.files[0];
-  const reader = new FileReader();
-  reader.onload = ()=>{
-    dados = JSON.parse(reader.result);
-    localStorage.setItem('dados', JSON.stringify(dados));
-    atualizar();
-  };
-  reader.readAsText(file);
-}
+const addRegistro = () => { if (!form.descricao || !form.valor) return; setRegistros([...registros, { ...form, valor: Number(form.valor) }]); setForm({ ...form, descricao: "", valor: "" }); };
 
-atualizar();
-</script></body>
-</html>
+const handlePDF = async (file) => { const arrayBuffer = await file.arrayBuffer(); const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise; let text = ""; for (let i = 1; i <= pdf.numPages; i++) { const page = await pdf.getPage(i); const content = await page.getTextContent(); text += content.items.map(i => i.str).join(" ") + "\n"; } setPdfText(text); };
+
+const totaisPorCategoria = CATEGORIAS.map(cat => ({ categoria: cat, total: registros.filter(r => r.categoria === cat) .reduce((a, b) => a + b.valor, 0) }));
+
+const totalGanhos = registros.filter(r => r.tipo === "Ganho") .reduce((a, b) => a + b.valor, 0);
+
+const totalDespesas = registros.filter(r => r.tipo === "Despesa") .reduce((a, b) => a + b.valor, 0);
+
+return ( <div className="min-h-screen bg-gray-100 p-4"> <motion.h1 initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-2xl font-bold mb-4"> Central Financeira Pessoal </motion.h1>
+
+<Card className="mb-4">
+    <CardContent className="p-4 grid gap-2">
+      <select className="border p-2 rounded" value={form.tipo}
+        onChange={e => setForm({ ...form, tipo: e.target.value })}>
+        <option>Ganho</option>
+        <option>Despesa</option>
+      </select>
+
+      <select className="border p-2 rounded" value={form.categoria}
+        onChange={e => setForm({ ...form, categoria: e.target.value })}>
+        {CATEGORIAS.map(c => <option key={c}>{c}</option>)}
+      </select>
+
+      <Input placeholder="Descrição" value={form.descricao}
+        onChange={e => setForm({ ...form, descricao: e.target.value })} />
+
+      <Input type="number" placeholder="Valor" value={form.valor}
+        onChange={e => setForm({ ...form, valor: e.target.value })} />
+
+      <Button onClick={addRegistro}>Adicionar</Button>
+    </CardContent>
+  </Card>
+
+  <Card className="mb-4">
+    <CardContent className="p-4">
+      <p>Ganhos: <b>R$ {totalGanhos.toFixed(2)}</b></p>
+      <p>Despesas: <b>R$ {totalDespesas.toFixed(2)}</b></p>
+      <p className="font-bold">Saldo: R$ {(totalGanhos - totalDespesas).toFixed(2)}</p>
+    </CardContent>
+  </Card>
+
+  <Card className="mb-4">
+    <CardContent className="p-4">
+      <h2 className="font-semibold mb-2">Leitor de Fatura (PDF)</h2>
+      <Input type="file" accept="application/pdf" onChange={e => handlePDF(e.target.files[0])} />
+      <textarea className="w-full h-32 mt-2 p-2 border rounded" value={pdfText} readOnly />
+      <p className="text-xs text-gray-600">*O texto do PDF é lido no seu navegador. Nenhum arquivo é enviado.</p>
+    </CardContent>
+  </Card>
+
+  <Card>
+    <CardContent className="p-4">
+      <h2 className="font-semibold mb-2">Relatório por Categoria</h2>
+      {totaisPorCategoria.map(c => (
+        <div key={c.categoria} className="flex justify-between text-sm border-b py-1">
+          <span>{c.categoria}</span>
+          <span>R$ {c.total.toFixed(2)}</span>
+        </div>
+      ))}
+    </CardContent>
+  </Card>
+</div>
+
+); }
