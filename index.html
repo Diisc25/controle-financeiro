@@ -1,1 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Controle Financeiro</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body{font-family:Arial;margin:0;background:#f4f6f8}
+header{background:#1e88e5;color:#fff;padding:15px;text-align:center}
+nav{display:flex;position:fixed;bottom:0;width:100%;background:#fff;border-top:1px solid #ccc}
+nav button{flex:1;padding:10px;border:none;background:none}
+nav button.active{color:#1e88e5;font-weight:bold}
+.page{display:none;padding:15px;padding-bottom:70px}
+.page.active{display:block}
+.card{background:#fff;padding:15px;margin-bottom:10px;border-radius:8px}
+input,select,button{width:100%;padding:8px;margin:5px 0}
+button.primary{background:#1e88e5;color:#fff;border:none}
+</style>
+</head>
+<body>
 
+<header>📊 Controle Financeiro</header>
+
+<div id="inicio" class="page active">
+  <div class="card">Saldo: <b id="saldo">R$ 0,00</b></div>
+  <div class="card">Ganhos: <b id="ganhos">R$ 0,00</b></div>
+  <div class="card">Despesas: <b id="despesas">R$ 0,00</b></div>
+</div>
+
+<div id="lancar" class="page">
+  <div class="card">
+    <select id="tipo">
+      <option value="ganho">Ganho</option>
+      <option value="despesa">Despesa</option>
+    </select>
+    <input id="valor" type="number" placeholder="Valor">
+    <select id="categoria">
+      <option>Alimentação</option>
+      <option>Combustível</option>
+      <option>Moradia</option>
+      <option>Compras Extras</option>
+      <option>Outros</option>
+    </select>
+    <button class="primary" onclick="add()">Salvar</button>
+  </div>
+</div>
+
+<div id="relatorios" class="page">
+  <div class="card"><canvas id="grafico"></canvas></div>
+</div>
+
+<nav>
+  <button class="active" onclick="show('inicio',this)">🏠</button>
+  <button onclick="show('lancar',this)">➕</button>
+  <button onclick="show('relatorios',this)">📊</button>
+</nav>
+
+<script>
+let dados = JSON.parse(localStorage.getItem('dados')) || [];
+let chart;
+
+function show(id,btn){
+ document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+ document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+ document.getElementById(id).classList.add('active');
+ btn.classList.add('active');
+ update();
+}
+
+function add(){
+ const tipo=document.getElementById('tipo').value;
+ const valor=Number(document.getElementById('valor').value);
+ const categoria=document.getElementById('categoria').value;
+ if(!valor)return;
+ dados.push({tipo,valor,categoria});
+ localStorage.setItem('dados',JSON.stringify(dados));
+ document.getElementById('valor').value='';
+ update();
+}
+
+function update(){
+ let g=0,d=0,cat={};
+ dados.forEach(x=>{
+  if(x.tipo=='ganho')g+=x.valor;
+  else{d+=x.valor;cat[x.categoria]=(cat[x.categoria]||0)+x.valor;}
+ });
+ document.getElementById('ganhos').innerText='R$ '+g.toFixed(2);
+ document.getElementById('despesas').innerText='R$ '+d.toFixed(2);
+ document.getElementById('saldo').innerText='R$ '+(g-d).toFixed(2);
+
+ if(chart)chart.destroy();
+ chart=new Chart(document.getElementById('grafico'),{
+  type:'pie',
+  data:{labels:Object.keys(cat),datasets:[{data:Object.values(cat)}]}
+ });
+}
+
+update();
+</script>
+
+</body>
+</html>
